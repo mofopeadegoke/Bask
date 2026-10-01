@@ -2,7 +2,6 @@
 'use client'
 
 import { useState } from 'react';
-import { users as initialUsers } from '@/lib/data';
 import {
   Table,
   TableBody,
@@ -21,7 +20,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { User } from '@/lib/types';
+import { BackendUserSummary, User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -38,7 +37,7 @@ export default function AdminUsersPage() {
     const fetchUsers = async () => {
       try {
         const data = await getAllUsers();
-        const mappedUsers = data.users.map((backendUser: any) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
+        const mappedUsers = data.users.map((backendUser: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
         const filteredUsers = mappedUsers.filter((u: User) => u.type !== 'Admin');
         setUsers(filteredUsers);
       } catch (error) {

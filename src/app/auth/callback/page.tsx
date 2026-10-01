@@ -18,7 +18,7 @@ export default function AuthSuccess() {
         const frontendUser = mapBackendUserToFrontendUser(profile);
         setCurrentUser(frontendUser);
         router.push('/home'); 
-      } catch (error) {
+      } catch {
         router.push('/login'); 
       }
     };

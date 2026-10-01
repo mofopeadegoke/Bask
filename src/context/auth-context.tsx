@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
-import type { User } from '@/lib/types';
+import type { BackendAuthResponse, User } from '@/lib/types';
 import { users as dummyUsers } from '@/lib/data';
 import { getUserProfile } from '@/api/auth';
 import Loader from '@/components/ui/loader';
@@ -19,7 +19,7 @@ function getRandomDummyUser() {
   return dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
 }
 
-function mapBackendUserToFrontendUser(backendUser: any): User {
+function mapBackendUserToFrontendUser(backendUser: BackendAuthResponse): User {
   const randomDummy = getRandomDummyUser();
 
   return {

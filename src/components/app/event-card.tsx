@@ -4,21 +4,18 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, CheckCircle } from 'lucide-react';
+import { Calendar, MapPin } from 'lucide-react';
 import { BackendEvent } from '@/lib/types';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-export function EventCard({ event, currentUserId }: { event: BackendEvent; currentUserId: string }) {
-  const [isRegistered, setIsRegistered] = useState(false);
+export function EventCard({ event }: { event: BackendEvent }) {
   const [isClient, setIsClient] = useState(false);
 
   console.log(event.media)
   useEffect(() => {
     setIsClient(true);
-    setIsRegistered(false); 
-  }, [event.attendees, currentUserId]);
+  }, []);
 
   // Get image URL with proper fallback
   const imageUrl = event?.media?.[0]?.url || PlaceHolderImages[6].imageUrl;
@@ -42,10 +39,6 @@ export function EventCard({ event, currentUserId }: { event: BackendEvent; curre
         </Card>
     );
   }
-
-  const handleRegister = () => {
-    setIsRegistered(!isRegistered);
-  };
 
   return (
     <Card className="flex flex-col">

@@ -16,7 +16,6 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Link from 'next/link';
 import { LucideLoader } from 'lucide-react';
 
 // Use getPosts instead of the admin-only getAllPosts

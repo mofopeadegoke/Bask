@@ -1,10 +1,10 @@
 import axios from 'axios';
-import { RegisterSchema, registerSchema } from '@/lib/types';
+import type { BackendAuthResponse, BackendUserSummary, RegisterSchema, User } from '@/lib/types';
 import {users as dummyUsers} from '@/lib/data';
-import { User } from '@/lib/types';
+import { API_BASE_URL } from '@/lib/config';
 
 const API = {
-  baseURL: 'https://bask-backend-slo6.onrender.com/api',
+  baseURL: API_BASE_URL,
   timeout: 30000
 };
 
@@ -82,7 +82,7 @@ export function getRandomDummyUser() {
   return dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
 }
 
-export function mapBackendUserToFrontendUser(backendUser: any): User {
+export function mapBackendUserToFrontendUser(backendUser: BackendAuthResponse): User {
   const randomDummy = getRandomDummyUser();
 
   return {
@@ -95,13 +95,13 @@ export function mapBackendUserToFrontendUser(backendUser: any): User {
     followers: randomDummy.followers ?? [],
     following: randomDummy.following ?? [],
     stats: randomDummy.stats ?? {},
-    profileCoverId: backendUser.user.profilePicture,
+    profileCoverId: backendUser.user.profilePicture ?? undefined,
     profilePicture: backendUser.user.profilePicture,
     token: backendUser.token,
   };
 }
 
-export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: any): User {
+export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: BackendUserSummary): User {
   const randomDummy = getRandomDummyUser();
 
   // Safely check for first and last names

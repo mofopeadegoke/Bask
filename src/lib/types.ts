@@ -116,6 +116,13 @@ export type Comment = {
   createdAt: string; // ISO string
 };
 
+export type BackendComment = {
+  id: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+};
+
 export type BackendUser = {
   id: string;
   firstName: string;
@@ -125,7 +132,21 @@ export type BackendUser = {
   profilePicture: string | null;
   googleId?: string; 
   isEmailVerified: boolean;
+  bio?: string | null;
 }
+
+/** Response shape of /auth/login and /auth/profile. */
+export type BackendAuthResponse = {
+  user: BackendUser;
+  token?: string;
+};
+
+/** A user object as returned by list endpoints, where some fields may be missing. */
+export type BackendUserSummary = Partial<BackendUser> & {
+  id: string;
+  name?: string;
+  type?: UserType;
+};
 
   export type BackendEvent = {
     id: string;

@@ -47,7 +47,7 @@ export default function AppLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useIsMobile();

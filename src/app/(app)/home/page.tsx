@@ -6,7 +6,7 @@ import { PostCard } from '@/components/app/post-card';
 import { useAuth } from '@/context/auth-context';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
-import type { BackendPost } from '@/lib/types';
+import type { BackendPost, MediaItem } from '@/lib/types';
 import { getPosts, getUserPosts } from '@/api/auth'; 
 
 export default function HomePage() {
@@ -45,7 +45,7 @@ export default function HomePage() {
           const normalizedUserPosts = Array.isArray(userPostsRes) ? userPostsRes : userPostsRes?.posts || [];
           
           const videosPosted = normalizedUserPosts.reduce((count: number, post: BackendPost) => {
-            const hasVideo = post.media?.some((m: any) => m.type === 'video');
+            const hasVideo = post.media?.some((m: MediaItem) => m.type === 'video');
             return hasVideo ? count + 1 : count;
           }, 0);
           
@@ -96,7 +96,7 @@ export default function HomePage() {
 
   const handlePostCreated = (newPost: BackendPost) => {
     setPosts((prevPosts) => [newPost, ...prevPosts]);
-    const hasVideo = newPost.media?.some((m: any) => m.type === 'video');
+    const hasVideo = newPost.media?.some((m: MediaItem) => m.type === 'video');
     if (hasVideo) {
       setUserVideoCount(prev => prev + 1);
     }

@@ -13,10 +13,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/auth-context';
-import { users as dummyUsers } from '@/lib/data';
 import { useState } from 'react';
 import { Logo } from '@/components/app/logo';
-import { Separator } from '@/components/ui/separator';
 import { loginUser } from '@/api/auth';
 import { LoginSchema } from '@/lib/types';
 import { loginSchema } from '@/lib/types';
@@ -29,13 +27,12 @@ import { connectSocket } from '@/lib/socket';
 
 
 export default function LoginPage() {
-  const { login, setCurrentUser } = useAuth();
+  const { setCurrentUser } = useAuth();
   const router = useRouter();
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginSchema>({
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
@@ -70,22 +67,6 @@ export default function LoginPage() {
       });
     }
   }
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedUserId) {
-      const user = dummyUsers.find(u => u.id === selectedUserId);
-      if (user?.type === 'Admin') {
-        login(selectedUserId);
-        router.push('/admin');
-      } else {
-        login(selectedUserId);
-        router.push('/home');
-      }
-    }
-  };
-
-  const regularUsers = dummyUsers.filter(u => u.type !== 'Admin');
 
   return (
     <div className="w-full max-w-md mx-auto p-4">

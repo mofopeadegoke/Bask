@@ -16,6 +16,7 @@ This repository is the **Next.js frontend** only. The REST API and Socket.IO ser
 - [Backend](#backend)
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
+- [Testing & Code Quality](#testing--code-quality)
 - [Deployment](#deployment)
 - [Known Limitations](#known-limitations)
 
@@ -104,24 +105,28 @@ Create a `.env.local` file in the project root:
 ```env
 # Used by Genkit's Google GenAI plugin for AI post enhancement
 GEMINI_API_KEY=your_gemini_api_key
+
+# Optional: origin of the Bask backend (REST API + Socket.IO), no trailing /api.
+# Defaults to https://bask-backend-slo6.onrender.com
+NEXT_PUBLIC_BACKEND_URL=http://localhost:5000
 ```
 
 `.env*` files are git-ignored. Never commit secrets.
 
-> The backend URL is currently **hard-coded**, not read from the environment. See [Backend](#backend).
+`NEXT_PUBLIC_*` variables are inlined at **build time**, so rebuild after changing `NEXT_PUBLIC_BACKEND_URL`.
 
 ---
 
 ## Backend
 
-The frontend talks to a separately deployed backend:
+The frontend talks to a separately deployed backend. Both URLs come from `src/lib/config.ts`:
 
-| Purpose | URL | Defined in |
-|---|---|---|
-| REST API | `https://bask-backend-slo6.onrender.com/api` | `src/api/auth.ts` |
-| Socket.IO | `https://bask-backend-slo6.onrender.com/` | `src/lib/socket.ts` |
+| Purpose | URL |
+|---|---|
+| REST API | `${NEXT_PUBLIC_BACKEND_URL}/api` |
+| Socket.IO | `${NEXT_PUBLIC_BACKEND_URL}` |
 
-To point the app at a different backend (e.g. a local one), change both URLs.
+To point the app at a different backend (e.g. a local one), set `NEXT_PUBLIC_BACKEND_URL` (see [Environment Variables](#environment-variables)). If it isn't set, the app uses the hosted backend at `https://bask-backend-slo6.onrender.com`.
 
 **Troubleshooting API errors.** The backend runs on Render, so check it directly:
 
@@ -144,6 +149,8 @@ curl -sI https://bask-backend-slo6.onrender.com/ | grep -iE "^HTTP|x-render-rout
 | `pnpm start` | Serve the production build |
 | `pnpm lint` | Run ESLint (`next lint`) |
 | `pnpm typecheck` | Type-check with `tsc --noEmit` |
+| `pnpm test` | Run the unit tests once (Vitest) |
+| `pnpm test:watch` | Run the unit tests in watch mode |
 | `pnpm genkit:dev` | Start the Genkit developer UI for testing AI flows |
 | `pnpm genkit:watch` | Same, restarting when files change |
 
@@ -158,7 +165,8 @@ src/
 │   ├── dev.ts               # Entry point for the Genkit dev UI
 │   └── flows/               # AI flows (post enhancement)
 ├── api/
-│   └── auth.ts              # axios client + all backend API calls
+│   ├── auth.ts              # axios client + all backend API calls
+│   └── auth.test.ts         # Tests for the user mappers
 ├── app/
 │   ├── (auth)/              # /login, /signup
 │   ├── (app)/               # Authenticated user area (shared sidebar layout)
@@ -178,6 +186,7 @@ src/
 ├── context/auth-context.tsx # Auth state provider
 ├── hooks/                   # use-toast, use-mobile
 ├── lib/
+│   ├── config.ts            # Backend URLs (reads NEXT_PUBLIC_BACKEND_URL)
 │   ├── socket.ts            # Socket.IO connection management
 │   ├── socketHelper.ts      # Conversation helpers
 │   ├── types.ts             # Shared types and Zod schemas
@@ -189,9 +198,17 @@ docs/blueprint.md            # Original product brief and style guide (written a
 
 ---
 
+## Testing & Code Quality
+
+- **Unit tests:** [Vitest](https://vitest.dev/), configured in `vitest.config.mts`. Test files sit next to the code as `*.test.ts`. Run them with `pnpm test`.
+- **Linting:** ESLint 9 with `next/core-web-vitals` and `next/typescript` (`eslint.config.mjs`).
+- **Builds are strict:** `pnpm build` fails on any TypeScript or ESLint error, so run `pnpm typecheck && pnpm lint && pnpm test` before pushing.
+
+---
+
 ## Deployment
 
-The app is set up for **Firebase App Hosting**. `apphosting.yaml` sets `maxInstances: 1`. Set `GEMINI_API_KEY` as a secret or environment variable in App Hosting.
+The app is set up for **Firebase App Hosting**. `apphosting.yaml` sets `maxInstances: 1`. Set `GEMINI_API_KEY` (and `NEXT_PUBLIC_BACKEND_URL`, if you're not using the default backend) as secrets or environment variables in App Hosting.
 
 Remote images are allowed from `res.cloudinary.com`, `images.unsplash.com`, `placehold.co` and `picsum.photos` (`next.config.ts`).
 
@@ -199,7 +216,5 @@ Remote images are allowed from `res.cloudinary.com`, `images.unsplash.com`, `pla
 
 ## Known Limitations
 
-- `next.config.ts` sets `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds`, so type and lint errors **do not fail** the build. Run `pnpm typecheck` and `pnpm lint` yourself.
-- The backend URL is hard-coded in two places rather than set by an environment variable.
 - Some user fields (e.g. avatar fallbacks and bios) are still filled from the dummy data in `src/lib/data.ts` when the backend doesn't provide them.
-- There is no automated test suite yet.
+- Test coverage is limited to pure logic (config, the user mappers, helpers). There are no component or end-to-end tests yet.

@@ -61,7 +61,7 @@ export default function EventsPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {events.length > 0 ? (
               events.map(event => (
-                <EventCard key={event.id} event={event} currentUserId={currentUser.id} />
+                <EventCard key={event.id} event={event} />
               ))
             ) : (
               <div className="text-muted-foreground col-span-full">No events available.</div>

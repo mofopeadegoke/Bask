@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import type { Socket } from "socket.io-client";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { Send, Pencil, LucideLoader, Users as UsersIcon, UserPlus, Check, X } from "lucide-react";
+import { Send, Pencil, LucideLoader, Users as UsersIcon, UserPlus, Check } from "lucide-react";
 
 import { getSocket } from "@/lib/socket";
 import { getConversationMessages, getUserConversations, getAllUsersNonAdmin, mapBackendUserToFrontendUserWithoutUserKey } from "@/api/auth";
 import { startConversation } from "@/lib/socketHelper";
 import { useAuth } from "@/context/auth-context";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { User, BackendConversation, BackendMessage } from "@/lib/types";
+import type { User, BackendConversation, BackendMessage, BackendUser, BackendUserSummary } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +32,6 @@ import { Label } from "@/components/ui/label";
 type NewMessageView = 'list' | 'group-form';
 
 export default function Messages() {
-  const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -59,7 +57,7 @@ export default function Messages() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const dummyAvatar = PlaceHolderImages[0];
+  const remoteTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get active conversation details
   const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -98,7 +96,7 @@ export default function Messages() {
   };
 
   // Get participant avatar - checks for profilePicture, returns null if not available
-  const getParticipantAvatar = (participant: any) => {
+  const getParticipantAvatar = (participant?: Pick<BackendUser, 'profilePicture'> | null) => {
     if (participant?.profilePicture) {
       return participant.profilePicture;
     }
@@ -117,7 +115,7 @@ export default function Messages() {
   };
 
   // Helper to enrich participant data
-  const enrichParticipantData = (participant: any, userId?: string) => {
+  const enrichParticipantData = (participant: BackendUser & { name?: string }, userId?: string) => {
     if (!participant) return participant;
     
     // If we have user data in nonAdminUsers, use it
@@ -248,11 +246,11 @@ export default function Messages() {
       );
     };
 
-    const onUserTyping = (data: any) => {
+    const onUserTyping = (data: { conversationId?: string }) => {
       if (data?.conversationId === activeConversationId) {
         setUserTyping(true);
-        clearTimeout((window as any).__typingTimeout);
-        (window as any).__typingTimeout = setTimeout(() => setUserTyping(false), 800);
+        if (remoteTypingTimeoutRef.current) clearTimeout(remoteTypingTimeoutRef.current);
+        remoteTypingTimeoutRef.current = setTimeout(() => setUserTyping(false), 800);
       }
     };
 
@@ -287,9 +285,9 @@ export default function Messages() {
       // complete list of conversations so we get the fully populated participants array.
       try {
         const data = await getUserConversations();
-        const enrichedConversations = data?.map((conv:any) => ({
+        const enrichedConversations = data?.map((conv: BackendConversation) => ({
           ...conv,
-          participants: conv.participants?.map((participant:any) => 
+          participants: conv.participants?.map((participant: BackendUser) => 
             enrichParticipantData(participant, currentUser?.id)
           ) || []
         })) || [];
@@ -300,12 +298,12 @@ export default function Messages() {
       }
     };
 
-    const onError = (err: any) => {
+    const onError = (err: unknown) => {
       console.error("Socket error:", err);
       setCreatingConversation(false);
       toast({
         title: 'Error',
-        description: err?.message || 'Something went wrong.',
+        description: getErrorMessage(err),
         variant: 'destructive',
       });
     };
@@ -334,9 +332,9 @@ export default function Messages() {
         const data = await getUserConversations();
         
         // Enrich all conversations with complete participant data
-        const enrichedConversations = data?.map((conv:any) => ({
+        const enrichedConversations = data?.map((conv: BackendConversation) => ({
           ...conv,
-          participants: conv.participants?.map((participant:any) => 
+          participants: conv.participants?.map((participant: BackendUser) => 
             enrichParticipantData(participant, currentUser?.id)
           ) || []
         })) || [];
@@ -347,11 +345,11 @@ export default function Messages() {
         if (enrichedConversations.length > 0 && !activeConversationId) {
           setActiveConversationId(enrichedConversations[0].id);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching conversations:", error);
         toast({
           title: 'Error Loading Conversations',
-          description: error?.message || 'Failed to load conversations',
+          description: getErrorMessage(error, 'Failed to load conversations'),
           variant: 'destructive',
         });
       } finally {
@@ -364,7 +362,7 @@ export default function Messages() {
       
       try {
         const data = await getAllUsersNonAdmin();
-        const mappedUsers = data.users?.map((user: any) => mapBackendUserToFrontendUserWithoutUserKey(user)) || [];
+        const mappedUsers = data.users?.map((user: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(user)) || [];
         const filteredUsers = mappedUsers.filter((user: User) => user.id !== currentUser.id);
         setNonAdminUsers(filteredUsers);
         
@@ -383,7 +381,7 @@ export default function Messages() {
             });
           });
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching non-admin users:", error);
       }
     }

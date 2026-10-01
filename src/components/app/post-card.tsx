@@ -16,14 +16,14 @@ import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Heart, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
-import type { BackendPost, Comment } from "@/lib/types";
+import type { BackendComment, BackendPost, Comment } from "@/lib/types";
 import { users as dummyUsers } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { getComments, addComment, likePost, checkIfPostIsLiked } from '@/api/auth';
 import { useToast } from "@/hooks/use-toast";
 
 // Transform backend comment format to frontend format
-function mapBackendCommentToFrontend(backendComment: any): Comment {
+function mapBackendCommentToFrontend(backendComment: BackendComment): Comment {
   return {
     id: backendComment.id,
     commenterId: backendComment.userId,
@@ -43,24 +43,6 @@ export function PostCard({ post }: { post: BackendPost }) {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-
-  const author = post.author;
-  if (!author || !currentUser) return null;
-
-  const fullName = `${author.firstName} ${author.lastName}`;
-  
-  // Check if author has profilePicture, otherwise use fallback
-  const avatarUrl = author.profilePicture || null;
-  const isVideo = post.media?.[0]?.type === 'video';
-  const isImage = post.media?.[0]?.type === 'image';
-  const mediaUrl = post.media?.[0]?.url || null;
-
-  const currentUserAvatar = PlaceHolderImages.find(img => img.id === currentUser.avatarId);
-
-  const parsedDate = new Date(Date.parse(post.createdAt));
-  const timeAgo = formatDistanceToNow(parsedDate, {
-    addSuffix: true,
-  });
 
   // Check if post is liked on mount
   useEffect(() => {
@@ -98,7 +80,26 @@ export function PostCard({ post }: { post: BackendPost }) {
     };
 
     fetchComments();
-  }, [showComments, post.id]);
+  }, [showComments, post.id, toast]);
+
+  const author = post.author;
+  if (!author || !currentUser) return null;
+
+  const fullName = `${author.firstName} ${author.lastName}`;
+  
+  // Check if author has profilePicture, otherwise use fallback
+  const avatarUrl = author.profilePicture || null;
+  const isVideo = post.media?.[0]?.type === 'video';
+  const isImage = post.media?.[0]?.type === 'image';
+  const mediaUrl = post.media?.[0]?.url || null;
+
+  const currentUserAvatar = PlaceHolderImages.find(img => img.id === currentUser.avatarId);
+
+  const parsedDate = new Date(Date.parse(post.createdAt));
+  const timeAgo = formatDistanceToNow(parsedDate, {
+    addSuffix: true,
+  });
+
 
   const handleToggleComments = () => {
     setShowComments(!showComments);

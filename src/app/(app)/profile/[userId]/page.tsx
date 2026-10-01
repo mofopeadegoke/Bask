@@ -41,7 +41,7 @@ import {
 } from '@/api/auth';
 
 import { notFound } from 'next/navigation';
-import { BackendPost, User, UserType } from '@/lib/types';
+import { BackendPost, BackendUserSummary, User, UserType } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast, useToast } from '@/hooks/use-toast';
 
@@ -174,7 +174,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
 
         const usersData = await getAllUsersNonAdmin();
         const mappedUsers =
-          usersData.users?.map((u: any) =>
+          usersData.users?.map((u: BackendUserSummary) =>
             mapBackendUserToFrontendUserWithoutUserKey(u)
           ) || [];
 
@@ -305,7 +305,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
     } else {
       const newlyFollowedUser = allUsers.find(u => String(u.id) === String(targetId));
       if (newlyFollowedUser) {
-        setUserFollowingUI(prev => [...prev, newlyFollowedUser as any]);
+        setUserFollowingUI(prev => [...prev, newlyFollowedUser]);
       }
     }
   };
@@ -318,7 +318,6 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const mappedFollowingList = userFollowingUI.map(u => ({
     ...mapBackendUserToFrontendUserWithoutUserKey(u)
   }));
-  const followingList = mappedFollowingList;
 
   const discoverableUsers = allUsers.filter(u => {
     const isNotSelf = String(u.id) !== String(currentUser.id);

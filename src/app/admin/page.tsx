@@ -2,7 +2,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Users, FileText, Calendar, Trophy } from "lucide-react";
 import { leaderboardData } from "@/lib/data";
-import { User, BackendPost, BackendEvent } from "@/lib/types";
+import { User, BackendPost, BackendEvent, BackendUserSummary } from "@/lib/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +40,7 @@ export default function AdminDashboardPage() {
         try {
             const fetchUsers = async () => {
                 const data = await getAllUsers();
-                const mappedUsers = data.users.map((backendUser: any) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
+                const mappedUsers = data.users.map((backendUser: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
                 setUsers(mappedUsers);
             };
             fetchUsers();
