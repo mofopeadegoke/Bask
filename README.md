@@ -194,12 +194,3 @@ docs/blueprint.md            # Original product brief and style guide (written a
 The app is set up for **Firebase App Hosting**. `apphosting.yaml` sets `maxInstances: 1`. Set `GEMINI_API_KEY` as a secret or environment variable in App Hosting.
 
 Remote images are allowed from `res.cloudinary.com`, `images.unsplash.com`, `placehold.co` and `picsum.photos` (`next.config.ts`).
-
----
-
-## Known Limitations
-
-- `next.config.ts` sets `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds`, so type and lint errors **do not fail** the build. Run `pnpm typecheck` and `pnpm lint` yourself.
-- The backend URL is hard-coded in two places rather than set by an environment variable.
-- Some user fields (e.g. avatar fallbacks and bios) are still filled from the dummy data in `src/lib/data.ts` when the backend doesn't provide them.
-- There is no automated test suite yet.
