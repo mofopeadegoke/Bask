@@ -1,29 +1,60 @@
 # Bask
 
-**Bask** is a social networking platform built for the sports community — connecting Players, Fans, Teams, and Scouts in one place. It supports profile management, social connections, content posting with AI assistance, real-time leaderboards, direct messaging, and event registration.
+**Bask** is a social network for the sports community. Players, Teams, Scouts and Fans can post content, follow each other, chat in real time, enter hashtag challenges with leaderboards, and find upcoming events. Admins get a separate panel to manage users, posts, events and challenges.
+
+This repository is the **Next.js frontend** only. The REST API and Socket.IO server are a separate backend service hosted on Render (see [Backend](#backend)).
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
+- [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
+- [Backend](#backend)
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
+- [Deployment](#deployment)
+- [Known Limitations](#known-limitations)
 
 ---
 
 ## Features
 
-- **User Account Management** – Players, Fans, Teams, and Scouts can create and manage profiles with personal information, profile pictures, and bios.
-- **Connection Management** – Send and accept connection requests between different account types.
-- **AI-Enhanced Content Posting** – Create and share posts with text, images, and videos. An AI tool powered by Google Genkit enriches posts with relevant contextual data (e.g., location and time).
-- **Direct Messaging** – Private messaging between Players, Teams, and Scouts, with Fans able to reply to messages from connected Players.
-- **Event Registration** – Browse upcoming sports events and register directly within the app.
-- **Dynamic Leaderboard** – Real-time leaderboards for challenges, updated based on user participation and backend data.
+### Users (`/home`, `/profile`, `/messages`, `/events`, `/leaderboard`)
+
+- **Accounts & roles** – Sign up as a Player, Team, Scout or Fan with email and password. The backend issues a JWT, stored in `localStorage`. Admin accounts are sent to `/admin` when they log in.
+- **Feed & posts** – A paginated feed with infinite scroll. Posts can include text, images and videos (stored on Cloudinary by the backend), and support likes and comments.
+- **AI post enhancement** – A Genkit flow running Gemini 2.5 Flash, called from a Next.js server action (`src/app/actions.ts`), rewrites a draft post with extra context such as a location, a time, a sports fact and hashtags.
+- **Profiles** – Edit your profile picture, cover image and bio. See follower and following lists, and follow or unfollow other users.
+- **Real-time messaging** – One-to-one and group conversations over Socket.IO, with typing indicators.
+- **Events** – Browse upcoming events. The **Register** button links to an external Paystack payment page.
+- **Challenges & leaderboard** – Challenges are identified by a hashtag. Users enter by posting with that hashtag, and the leaderboard ranks entrants by the total likes on their challenge posts.
+
+### Admins (`/admin`)
+
+- A dashboard with totals for users, posts and events
+- Manage users, moderate posts and comments (delete), create events, create challenges, and view challenge leaderboards
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────┐   REST (axios, JWT)    ┌──────────────────────────────┐
+│  Next.js frontend        │ ─────────────────────▶ │  Bask backend (Render)       │
+│  (this repo)             │                        │  /api/...  + Socket.IO       │
+│                          │ ◀──── Socket.IO ─────▶ │  media stored on Cloudinary  │
+│  server action ──▶ Genkit ──▶ Google Gemini       └──────────────────────────────┘
+└──────────────────────────┘
+```
+
+- **API client:** `src/api/auth.ts` holds the shared axios instance and every API call. It attaches the `Authorization: Bearer <token>` header, and on a `401` response it clears the token and redirects to `/login`.
+- **Auth state:** `src/context/auth-context.tsx` (`AuthProvider` / `useAuth`).
+- **Realtime:** `src/lib/socket.ts` manages a single authenticated Socket.IO connection, and `src/lib/socketHelper.ts` holds the helpers built on it.
+- **AI:** `src/ai/genkit.ts` configures Genkit, and `src/ai/flows/` contains the post-enhancement flow.
 
 ---
 
@@ -31,71 +62,76 @@
 
 | Layer | Technology |
 |---|---|
-| Framework | [Next.js 15](https://nextjs.org/) (App Router, Turbopack) |
-| Language | TypeScript |
-| Styling | Tailwind CSS, Radix UI |
-| AI / Genkit | [Firebase Genkit](https://firebase.google.com/docs/genkit) with Google AI |
-| Backend / Auth | [Firebase](https://firebase.google.com/) (Authentication, Firestore, App Hosting) |
-| Real-time | Socket.IO |
-| Forms | React Hook Form + Zod |
-| Charts | Recharts |
-
----
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or higher
-- [pnpm](https://pnpm.io/) (recommended) — install with `npm install -g pnpm`
-- A [Firebase](https://console.firebase.google.com/) project with Authentication and Firestore enabled
-- A Google AI API key (for Genkit AI features)
+| Framework | [Next.js 15](https://nextjs.org/) (App Router, Turbopack in dev) |
+| Language | TypeScript, React 18 |
+| Styling / UI | Tailwind CSS, [shadcn/ui](https://ui.shadcn.com/) (Radix UI primitives), lucide-react icons |
+| Forms & validation | React Hook Form + Zod |
+| HTTP | axios |
+| Real-time | socket.io-client |
+| AI | [Genkit](https://genkit.dev/) with the Google GenAI plugin (`gemini-2.5-flash`) |
+| Hosting | Firebase App Hosting (`apphosting.yaml`) |
+| Package manager | pnpm |
 
 ---
 
 ## Getting Started
 
-1. **Clone the repository**
+### Prerequisites
 
-   ```bash
-   git clone https://github.com/mofopeadegoke/studio.git
-   cd studio
-   ```
+- [Node.js](https://nodejs.org/) 18 or newer
+- [pnpm](https://pnpm.io/): `npm install -g pnpm`
+- A [Gemini API key](https://aistudio.google.com/app/apikey) (only needed for the AI post enhancement)
+- A running Bask backend (see [Backend](#backend))
 
-2. **Install dependencies**
+### Setup
 
-   ```bash
-   pnpm install
-   ```
+```bash
+git clone https://github.com/mofopeadegoke/studio.git
+cd studio
+pnpm install
+# create .env.local (see below)
+pnpm dev
+```
 
-3. **Set up environment variables** (see [Environment Variables](#environment-variables))
-
-4. **Start the development server**
-
-   ```bash
-   pnpm dev
-   ```
-
-   The app will be available at `http://localhost:9002`.
+The app runs at **http://localhost:9002**. Visiting `/` redirects to `/login`.
 
 ---
 
 ## Environment Variables
 
-Create a `.env.local` file in the project root and populate it with your Firebase and Google AI credentials:
+Create a `.env.local` file in the project root:
 
 ```env
-# Firebase
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-
-# Google AI (Genkit)
-GOOGLE_GENAI_API_KEY=your_google_ai_api_key
+# Used by Genkit's Google GenAI plugin for AI post enhancement
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-> **Note:** Never commit `.env.local` or any file containing secrets to version control. It is already listed in `.gitignore`.
+`.env*` files are git-ignored. Never commit secrets.
+
+> The backend URL is currently **hard-coded**, not read from the environment. See [Backend](#backend).
+
+---
+
+## Backend
+
+The frontend talks to a separately deployed backend:
+
+| Purpose | URL | Defined in |
+|---|---|---|
+| REST API | `https://bask-backend-slo6.onrender.com/api` | `src/api/auth.ts` |
+| Socket.IO | `https://bask-backend-slo6.onrender.com/` | `src/lib/socket.ts` |
+
+To point the app at a different backend (e.g. a local one), change both URLs.
+
+**Troubleshooting API errors.** The backend runs on Render, so check it directly:
+
+```bash
+curl -sI https://bask-backend-slo6.onrender.com/ | grep -iE "^HTTP|x-render-routing"
+```
+
+- `x-render-routing: suspend` with a `503` means the Render service is **suspended**. Resume it, or check billing, in the Render dashboard.
+- A slow first response (30–60s) that then succeeds means a free-tier instance was spinning up after being idle. This is expected.
+- A `5xx` without that header means the backend itself is failing. Check the service logs in Render.
 
 ---
 
@@ -103,45 +139,67 @@ GOOGLE_GENAI_API_KEY=your_google_ai_api_key
 
 | Command | Description |
 |---|---|
-| `pnpm dev` | Start the Next.js development server on port 9002 (Turbopack) |
-| `pnpm build` | Build the application for production |
-| `pnpm start` | Start the production server |
-| `pnpm lint` | Run ESLint across the project |
-| `pnpm typecheck` | Run TypeScript type checking without emitting files |
-| `pnpm genkit:dev` | Start the Genkit developer UI alongside the app |
-| `pnpm genkit:watch` | Start the Genkit developer UI with file watching |
+| `pnpm dev` | Start the dev server on port 9002 (Turbopack) |
+| `pnpm build` | Production build |
+| `pnpm start` | Serve the production build |
+| `pnpm lint` | Run ESLint (`next lint`) |
+| `pnpm typecheck` | Type-check with `tsc --noEmit` |
+| `pnpm genkit:dev` | Start the Genkit developer UI for testing AI flows |
+| `pnpm genkit:watch` | Same, restarting when files change |
 
 ---
 
 ## Project Structure
 
 ```
-studio/
-├── docs/                   # Project documentation and blueprints
-├── src/
-│   ├── ai/                 # Genkit AI configuration and flows
-│   │   ├── flows/          # AI flow definitions (e.g., post enhancement)
-│   │   ├── dev.ts          # Genkit dev server entry point
-│   │   └── genkit.ts       # Genkit client initialization
-│   ├── app/                # Next.js App Router pages and layouts
-│   │   ├── (app)/          # Authenticated app routes
-│   │   │   ├── home/       # Home / feed page
-│   │   │   ├── events/     # Events listing and registration
-│   │   │   ├── leaderboard/# Leaderboard page
-│   │   │   ├── messages/   # Direct messaging
-│   │   │   └── profile/    # User profile pages
-│   │   ├── (auth)/         # Authentication routes (login, signup)
-│   │   ├── admin/          # Admin pages
-│   │   ├── actions.ts      # Next.js server actions
-│   │   ├── layout.tsx      # Root layout
-│   │   └── page.tsx        # Root page (redirects to login)
-│   ├── components/         # Reusable React components
-│   ├── context/            # React context providers (e.g., AuthContext)
-│   ├── hooks/              # Custom React hooks
-│   └── lib/                # Shared utilities and helpers
-├── apphosting.yaml         # Firebase App Hosting configuration
-├── next.config.ts          # Next.js configuration
-├── tailwind.config.ts      # Tailwind CSS configuration
-└── tsconfig.json           # TypeScript configuration
+src/
+├── ai/
+│   ├── genkit.ts            # Genkit + Gemini configuration
+│   ├── dev.ts               # Entry point for the Genkit dev UI
+│   └── flows/               # AI flows (post enhancement)
+├── api/
+│   └── auth.ts              # axios client + all backend API calls
+├── app/
+│   ├── (auth)/              # /login, /signup
+│   ├── (app)/               # Authenticated user area (shared sidebar layout)
+│   │   ├── home/            # Feed + create post
+│   │   ├── profile/[userId] # Profile, followers/following, edit profile
+│   │   ├── messages/        # Real-time chat
+│   │   ├── events/          # Events and challenges
+│   │   └── leaderboard/     # Challenge leaderboards
+│   ├── admin/               # Admin panel (users, posts, events, challenges, leaderboard)
+│   ├── auth/callback/       # Loads the user profile after authentication
+│   ├── actions.ts           # Server actions (AI post enhancement)
+│   ├── layout.tsx           # Root layout (fonts, AuthProvider, Toaster)
+│   └── page.tsx             # Redirects to /login
+├── components/
+│   ├── app/                 # App components (post card, create-post form, event card, logo)
+│   └── ui/                  # shadcn/ui components
+├── context/auth-context.tsx # Auth state provider
+├── hooks/                   # use-toast, use-mobile
+├── lib/
+│   ├── socket.ts            # Socket.IO connection management
+│   ├── socketHelper.ts      # Conversation helpers
+│   ├── types.ts             # Shared types and Zod schemas
+│   ├── data.ts              # Placeholder/dummy data (used as fallbacks)
+│   └── placeholder-images.* # Placeholder image catalogue
+└── public/                  # Logos
+docs/blueprint.md            # Original product brief and style guide (written as "SportLink")
 ```
 
+---
+
+## Deployment
+
+The app is set up for **Firebase App Hosting**. `apphosting.yaml` sets `maxInstances: 1`. Set `GEMINI_API_KEY` as a secret or environment variable in App Hosting.
+
+Remote images are allowed from `res.cloudinary.com`, `images.unsplash.com`, `placehold.co` and `picsum.photos` (`next.config.ts`).
+
+---
+
+## Known Limitations
+
+- `next.config.ts` sets `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds`, so type and lint errors **do not fail** the build. Run `pnpm typecheck` and `pnpm lint` yourself.
+- The backend URL is hard-coded in two places rather than set by an environment variable.
+- Some user fields (e.g. avatar fallbacks and bios) are still filled from the dummy data in `src/lib/data.ts` when the backend doesn't provide them.
+- There is no automated test suite yet.
