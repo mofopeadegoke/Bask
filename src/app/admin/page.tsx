@@ -37,64 +37,27 @@ export default function AdminDashboardPage() {
     const recentPosts = posts.slice(0, 5);
 
     useEffect(() => {
-        try {
-            const fetchUsers = async () => {
-                const data = await getAllUsers();
-                const mappedUsers = data.users.map((backendUser: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
-                setUsers(mappedUsers);
-            };
-            fetchUsers();
-        } catch (error) {
-            console.error("Error fetching users:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch users.",
-                variant: "destructive",
-            });
+        // Each request runs on its own, so one failure doesn't hide the others.
+        async function load<T>(fetcher: () => Promise<T>, onSuccess: (data: T) => void, what: string) {
+            try {
+                onSuccess(await fetcher());
+            } catch (error) {
+                console.error(`Error fetching ${what}:`, error);
+                toast({
+                    title: "Error",
+                    description: `Failed to fetch ${what}.`,
+                    variant: "destructive",
+                });
+            }
         }
-        try {
-            const fetchPosts = async () => {
-                const data = await getAllPosts();
-                setPosts(data.posts);
-            };
-            fetchPosts();
-        } catch (error) {
-            console.error("Error fetching posts:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch posts.",
-                variant: "destructive",
-            });
-        }
-        try {
-            const fetchEvents = async () => {
-                const data = await getAllEvents();
-                setEvents(data.events);
-            };
-            fetchEvents();
-        } catch (error) {
-            console.error("Error fetching events:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch events.",
-                variant: "destructive",
-            });
-        }
-        try {
-            const fetchChallenges = async () => {
-                const data = await getAllChallenges();
-                setChallenges(data.challenges || []);
-            };
-            fetchChallenges();
-        } catch (error) {
-            console.error("Error fetching challenges:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch challenges.",
-                variant: "destructive",
-            });
-        }
-    }, []);
+
+        load(getAllUsers, (data) => setUsers(
+            data.users.map((backendUser: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(backendUser))
+        ), "users");
+        load(getAllPosts, (data) => setPosts(data.posts), "posts");
+        load(getAllEvents, (data) => setEvents(data.events), "events");
+        load(getAllChallenges, (data) => setChallenges(data.challenges || []), "challenges");
+    }, [toast]);
 
     return (
         <div className="grid gap-6">
