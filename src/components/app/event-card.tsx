@@ -7,7 +7,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Calendar, MapPin } from 'lucide-react';
 import { BackendEvent } from '@/lib/types';
 import Link from 'next/link';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export function EventCard({ event }: { event: BackendEvent }) {
   const [isClient, setIsClient] = useState(false);
@@ -18,7 +17,7 @@ export function EventCard({ event }: { event: BackendEvent }) {
   }, []);
 
   // Get image URL with proper fallback
-  const imageUrl = event?.media?.[0]?.url || PlaceHolderImages[6].imageUrl;
+  const imageUrl = event?.media?.[0]?.url;
   console.log("Event image URL:", imageUrl);
 
   if (!isClient) {  
@@ -42,13 +41,15 @@ export function EventCard({ event }: { event: BackendEvent }) {
 
   return (
     <Card className="flex flex-col">
-      <div className="relative w-full h-40">
-        <Image
-          src={imageUrl}
-          alt={event.title}
-          fill
-          className="object-cover rounded-t-lg"
-        />
+      <div className="relative w-full h-40 bg-muted rounded-t-lg">
+        {imageUrl && (
+          <Image
+            src={imageUrl}
+            alt={event.title}
+            fill
+            className="object-cover rounded-t-lg"
+          />
+        )}
       </div>
       <CardHeader>
         <CardTitle className="font-headline">{event.title}</CardTitle>

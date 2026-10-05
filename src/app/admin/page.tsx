@@ -1,8 +1,7 @@
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Users, FileText, Calendar, Trophy } from "lucide-react";
-import { leaderboardData } from "@/lib/data";
-import { User, BackendPost, BackendEvent, BackendUserSummary } from "@/lib/types";
+import { User, BackendPost, BackendEvent, BackendUserSummary, Challenge } from "@/lib/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getAllUsers, mapBackendUserToFrontendUserWithoutUserKey, getAllPosts, getAllEvents } from "@/api/auth";
+import { getAllUsers, mapBackendUserToFrontendUserWithoutUserKey, getAllPosts, getAllEvents, getAllChallenges } from "@/api/auth";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +22,7 @@ export default function AdminDashboardPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [posts, setPosts] = useState<BackendPost[]>([]);
     const [events, setEvents] = useState<BackendEvent[]>([]);
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
     
 
 
@@ -31,7 +31,7 @@ export default function AdminDashboardPage() {
     
     const totalPosts = posts.length;
     const totalEvents = events.length;
-    const totalLeaderboardEntries = Object.values(leaderboardData).reduce((acc, curr) => acc + curr.length, 0);
+    const totalChallenges = challenges.length;
 
     const recentUsers = regularUsers.slice(0, 5);
     const recentPosts = posts.slice(0, 5);
@@ -80,6 +80,20 @@ export default function AdminDashboardPage() {
                 variant: "destructive",
             });
         }
+        try {
+            const fetchChallenges = async () => {
+                const data = await getAllChallenges();
+                setChallenges(data.challenges || []);
+            };
+            fetchChallenges();
+        } catch (error) {
+            console.error("Error fetching challenges:", error);
+            toast({
+                title: "Error",
+                description: "Failed to fetch challenges.",
+                variant: "destructive",
+            });
+        }
     }, []);
 
     return (
@@ -114,11 +128,11 @@ export default function AdminDashboardPage() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Leaderboard Entries</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total Challenges</CardTitle>
                         <Trophy className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totalLeaderboardEntries}</div>
+                        <div className="text-2xl font-bold">{totalChallenges}</div>
                     </CardContent>
                 </Card>
             </div>

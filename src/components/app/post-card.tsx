@@ -17,8 +17,6 @@ import { MessageCircle, Heart, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import type { BackendComment, BackendPost, Comment } from "@/lib/types";
-import { users as dummyUsers } from '@/lib/data';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { getComments, addComment, likePost, checkIfPostIsLiked } from '@/api/auth';
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,7 +91,6 @@ export function PostCard({ post }: { post: BackendPost }) {
   const isImage = post.media?.[0]?.type === 'image';
   const mediaUrl = post.media?.[0]?.url || null;
 
-  const currentUserAvatar = PlaceHolderImages.find(img => img.id === currentUser.avatarId);
 
   const parsedDate = new Date(Date.parse(post.createdAt));
   const timeAgo = formatDistanceToNow(parsedDate, {
@@ -248,8 +245,7 @@ export function PostCard({ post }: { post: BackendPost }) {
               </p>
             ) : comments.length > 0 ? (
               comments.map(comment => {
-                const commenter = dummyUsers.find(u => u.id === comment.commenterId) || currentUser;
-                const commenterAvatar = PlaceHolderImages.find(img => img.id === commenter.avatarId);
+                const commenter = currentUser;
                 
                 // Parse the comment's createdAt
                 const commentDate = comment.createdAt 
@@ -260,9 +256,9 @@ export function PostCard({ post }: { post: BackendPost }) {
                 return (
                   <div key={comment.id} className="flex items-start gap-2 sm:gap-3">
                     <Avatar className="h-8 w-8 flex-shrink-0">
-                      {commenterAvatar?.imageUrl && (
+                      {commenter.profilePicture && (
                         <AvatarImage 
-                          src={commenterAvatar.imageUrl} 
+                          src={commenter.profilePicture} 
                           alt={commenter.name} 
                         />
                       )}
@@ -293,9 +289,9 @@ export function PostCard({ post }: { post: BackendPost }) {
           </div>
           <form onSubmit={handleAddComment} className="w-full flex items-center gap-2 pt-2">
             <Avatar className="h-8 w-8 flex-shrink-0">
-              {currentUserAvatar?.imageUrl && (
+              {currentUser.profilePicture && (
                 <AvatarImage 
-                  src={currentUserAvatar.imageUrl} 
+                  src={currentUser.profilePicture} 
                   alt={currentUser.name} 
                 />
               )}

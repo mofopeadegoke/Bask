@@ -25,7 +25,6 @@ import {
 import Link from 'next/link';
 import { Logo } from '@/components/app/logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { logoutUser } from '@/api/auth';
 import {
@@ -62,10 +61,6 @@ export default function AppLayout({
     return null; // or a loading spinner
   }
 
-  const userAvatar = PlaceHolderImages.find(
-    img => img.id === currentUser.avatarId
-  );
-
   const navItems = [
     { href: '/home', icon: Home, label: 'Home' },
     { href: '/messages', icon: MessageSquare, label: 'Messages' },
@@ -98,9 +93,8 @@ export default function AppLayout({
               >
                 <Avatar className="h-9 w-9">
                   <AvatarImage
-                    src={userAvatar?.imageUrl}
+                    src={currentUser.profilePicture ?? undefined}
                     alt={currentUser.name}
-                    data-ai-hint={userAvatar?.imageHint}
                   />
                   <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
                 </Avatar>
@@ -191,9 +185,8 @@ export default function AppLayout({
               >
                 <Avatar className="h-9 w-9">
                   <AvatarImage
-                    src={userAvatar?.imageUrl}
+                    src={currentUser.profilePicture ?? undefined}
                     alt={currentUser.name}
-                    data-ai-hint={userAvatar?.imageHint}
                   />
                   <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
                 </Avatar>

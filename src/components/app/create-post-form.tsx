@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import type { User } from '@/lib/types';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ImageIcon, Sparkles, VideoIcon, X } from 'lucide-react';
 import { enhancePost } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +33,6 @@ export function CreatePostForm({
   const videoInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const userAvatar = PlaceHolderImages.find(img => img.id === currentUser.avatarId);
 
   // Calculate how many videos are currently in the draft
   const draftVideoCount = mediaFiles.filter(file => file.type.startsWith('video/')).length;
@@ -162,7 +160,7 @@ export function CreatePostForm({
       <CardContent className="p-3 sm:p-4">
         <div className="flex gap-3 sm:gap-4">
           <Avatar className="flex-shrink-0">
-            <AvatarImage src={userAvatar?.imageUrl} alt={currentUser.name} data-ai-hint={userAvatar?.imageHint} />
+            <AvatarImage src={currentUser.profilePicture ?? undefined} alt={currentUser.name} />
             <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="w-full min-w-0 flex-1">

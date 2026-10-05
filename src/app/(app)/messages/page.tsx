@@ -9,7 +9,6 @@ import { getSocket } from "@/lib/socket";
 import { getConversationMessages, getUserConversations, getAllUsersNonAdmin, mapBackendUserToFrontendUserWithoutUserKey } from "@/api/auth";
 import { startConversation } from "@/lib/socketHelper";
 import { useAuth } from "@/context/auth-context";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { User, BackendConversation, BackendMessage, BackendUser, BackendUserSummary } from "@/lib/types";
@@ -103,16 +102,8 @@ export default function Messages() {
     return null;
   };
 
-  // Get user avatar for user picker - checks for avatarId and maps to placeholder
-  const getUserAvatar = (user: User) => {
-    if (user.avatarId) {
-      const userPlaceholder = PlaceHolderImages.find(img => img.id === user.avatarId);
-      if (userPlaceholder?.imageUrl) {
-        return userPlaceholder.imageUrl;
-      }
-    }
-    return null;
-  };
+  // Get user avatar for user picker
+  const getUserAvatar = (user: User) => user.profilePicture ?? null;
 
   // Helper to enrich participant data
   const enrichParticipantData = (participant: BackendUser & { name?: string }, userId?: string) => {

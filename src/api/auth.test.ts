@@ -36,6 +36,16 @@ describe('mapBackendUserToFrontendUser', () => {
 
     expect(user.bio).toBe('');
   });
+
+  it('returns only backend data, the same every time', () => {
+    const response = { user: backendUser, token: 'jwt' };
+    const user = mapBackendUserToFrontendUser(response);
+
+    expect(mapBackendUserToFrontendUser(response)).toEqual(user);
+    expect(Object.keys(user).sort()).toEqual(
+      ['bio', 'firstName', 'id', 'lastName', 'name', 'profilePicture', 'token', 'type'],
+    );
+  });
 });
 
 describe('mapBackendUserToFrontendUserWithoutUserKey', () => {
@@ -72,6 +82,19 @@ describe('mapBackendUserToFrontendUserWithoutUserKey', () => {
 
   it('defaults a missing profile picture to null', () => {
     expect(mapBackendUserToFrontendUserWithoutUserKey({ id: 'u7' }).profilePicture).toBeNull();
+  });
+
+  it('defaults a missing bio to an empty string instead of mock data', () => {
+    expect(mapBackendUserToFrontendUserWithoutUserKey({ id: 'u8' }).bio).toBe('');
+  });
+
+  it('returns only backend data, the same every time', () => {
+    const user = mapBackendUserToFrontendUserWithoutUserKey(backendUser);
+
+    expect(mapBackendUserToFrontendUserWithoutUserKey(backendUser)).toEqual(user);
+    expect(Object.keys(user).sort()).toEqual(
+      ['bio', 'firstName', 'id', 'lastName', 'name', 'profilePicture', 'type'],
+    );
   });
 });
 

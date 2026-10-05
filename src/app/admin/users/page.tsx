@@ -23,7 +23,6 @@ import { Label } from '@/components/ui/label';
 import { BackendUserSummary, User } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { getAllUsers, mapBackendUserToFrontendUserWithoutUserKey } from '@/api/auth';
 import { useEffect } from 'react';
 
@@ -88,13 +87,12 @@ export default function AdminUsersPage() {
                 </TableHeader>
                 <TableBody>
                 {users.map(user => {
-                    const avatar = PlaceHolderImages.find(p => p.id === user.avatarId);
                     return (
                         <TableRow key={user.id}>
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-3">
                                     <Avatar>
-                                        <AvatarImage src={avatar?.imageUrl} alt={user.name} data-ai-hint={avatar?.imageHint} />
+                                        <AvatarImage src={user.profilePicture ?? undefined} alt={user.name} />
                                         <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     {user.name}

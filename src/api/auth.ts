@@ -1,6 +1,5 @@
 import axios from 'axios';
 import type { BackendAuthResponse, BackendUserSummary, RegisterSchema, User } from '@/lib/types';
-import {users as dummyUsers} from '@/lib/data';
 import { API_BASE_URL } from '@/lib/config';
 
 const API = {
@@ -78,32 +77,22 @@ export async function getUserPosts(userId: string) {
   return response.data;
 }
 
-export function getRandomDummyUser() {
-  return dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
-}
-
 export function mapBackendUserToFrontendUser(backendUser: BackendAuthResponse): User {
-  const randomDummy = getRandomDummyUser();
+  const { user } = backendUser;
 
   return {
-    id: backendUser.user.id,
-    name: `${backendUser.user.firstName} ${backendUser.user.lastName}`,
-    type: backendUser.user.accountType,
-    avatarId: randomDummy.avatarId,
-    bio: backendUser.user.bio ?? "",
-    connections: randomDummy.connections ?? [],
-    followers: randomDummy.followers ?? [],
-    following: randomDummy.following ?? [],
-    stats: randomDummy.stats ?? {},
-    profileCoverId: backendUser.user.profilePicture ?? undefined,
-    profilePicture: backendUser.user.profilePicture,
+    id: user.id,
+    name: `${user.firstName} ${user.lastName}`,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    type: user.accountType,
+    bio: user.bio ?? "",
+    profilePicture: user.profilePicture,
     token: backendUser.token,
   };
 }
 
 export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: BackendUserSummary): User {
-  const randomDummy = getRandomDummyUser();
-
   // Safely check for first and last names
   const fName = backendUser.firstName && backendUser.firstName !== "undefined" ? backendUser.firstName : "";
   const lName = backendUser.lastName && backendUser.lastName !== "undefined" ? backendUser.lastName : "";
@@ -120,13 +109,7 @@ export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: BackendU
     firstName: fName,
     lastName: lName,
     type: backendUser.accountType || backendUser.type || "Fan",
-    avatarId: randomDummy.avatarId,
-    bio: backendUser.bio || randomDummy.bio || "",
-    connections: randomDummy.connections ?? [],
-    followers: randomDummy.followers ?? [],
-    following: randomDummy.following ?? [],
-    stats: randomDummy.stats ?? {},
-    profileCoverId: randomDummy.profileCoverId,
+    bio: backendUser.bio || "",
     profilePicture: backendUser.profilePicture || null,
   };
 }

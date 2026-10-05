@@ -1,9 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
-import type { BackendAuthResponse, User } from '@/lib/types';
-import { users as dummyUsers } from '@/lib/data';
-import { getUserProfile } from '@/api/auth';
+import type { User } from '@/lib/types';
+import { getUserProfile, mapBackendUserToFrontendUser } from '@/api/auth';
 import Loader from '@/components/ui/loader';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 
@@ -12,39 +11,6 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   setCurrentUser: (user: User | null) => void;
-}
-
-function getRandomDummyUser() {
-  return dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
-}
-
-function mapBackendUserToFrontendUser(backendUser: BackendAuthResponse): User {
-  const randomDummy = getRandomDummyUser();
-
-  return {
-    id: backendUser.user.id,
-
-    // Combine real backend data with dummy data
-    name: `${backendUser.user.firstName} ${backendUser.user.lastName}`,
-    type: backendUser.user.accountType,
-
-    // Use dummy user's avatar instead of placeholder
-    avatarId: randomDummy.avatarId,
-
-    // Use dummy user's bio
-    bio: randomDummy.bio ?? "",
-
-    // Use dummy user's social graph
-    connections: randomDummy.connections ?? [],
-    followers: randomDummy.followers ?? [],
-    following: randomDummy.following ?? [],
-
-    // Use dummy user's stats if they exist
-    stats: randomDummy.stats ?? {},
-
-    // Use their dummy profile cover if available
-    profileCoverId: randomDummy.profileCoverId,
-  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
