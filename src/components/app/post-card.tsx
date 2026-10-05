@@ -245,7 +245,11 @@ export function PostCard({ post }: { post: BackendPost }) {
               </p>
             ) : comments.length > 0 ? (
               comments.map(comment => {
-                const commenter = currentUser;
+                // Comments only carry the author's id; the backend sends no name or
+                // picture, so other people's comments show a generic author.
+                const commenter = comment.commenterId === currentUser.id
+                  ? currentUser
+                  : { id: comment.commenterId, name: 'User', profilePicture: null };
                 
                 // Parse the comment's createdAt
                 const commentDate = comment.createdAt 
