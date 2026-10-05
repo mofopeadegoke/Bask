@@ -130,6 +130,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const [posts, setPosts] = useState<BackendPost[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileMissing, setProfileMissing] = useState(false);
   const [userFollowersUI, setUserFollowersUI] = useState<User[]>([]);
   const [userFollowingUI, setUserFollowingUI] = useState<User[]>([]);
 
@@ -152,6 +153,9 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const { toast } = useToast();
 
   useEffect(() => {
+    // Ignore responses that arrive after navigating to another profile.
+    let ignore = false;
+
     async function fetchData(currentUserId: string) {
       try {
         const usersData = await getAllUsersNonAdmin();
@@ -167,13 +171,15 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
           : mappedUsers.find(u => String(u.id) === String(userId));
 
         if (!mappedUser) {
-          notFound();
+          if (!ignore) setProfileMissing(true);
+          return;
         }
 
         const rawPosts = await getUserPosts(mappedUser.id);
         const normalizedPosts = Array.isArray(rawPosts)
           ? rawPosts
           : rawPosts?.posts || [];
+        if (ignore) return;
 
         setUser(mappedUser);
         setPosts(normalizedPosts);
@@ -185,9 +191,9 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
         setEditedFirstName(nameParts[0] || '');
         setEditedLastName(nameParts.slice(1).join(' ') || '');
       } catch {
-        notFound();
+        if (!ignore) setProfileMissing(true);
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
 
@@ -195,6 +201,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
       try {
         const followers = await userFollowers(userId);
         const following = await userFollowing(userId);
+        if (ignore) return;
         setUserFollowersUI(followers.followers);
         setUserFollowingUI(following.following);
       } catch (error) {
@@ -205,6 +212,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
     async function fetchMyFollowing(currentUserId: string) {
       try {
         const myFollowing = await userFollowing(currentUserId);
+        if (ignore) return;
         setMyFollowingIds(
           new Set((myFollowing.following || []).map((u: BackendUserSummary) => String(u.id)))
         );
@@ -214,12 +222,25 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
     }
 
     if (currentUser) {
+      // Clear the previous profile so it isn't shown while the next one loads.
+      setLoading(true);
+      setProfileMissing(false);
+      setUser(null);
+      setPosts([]);
+      setUserFollowersUI([]);
+      setUserFollowingUI([]);
+
       fetchData(currentUser.id);
       fetchProfileData();
       fetchMyFollowing(currentUser.id);
     }
+
+    return () => {
+      ignore = true;
+    };
   }, [currentUser, userId]);
 
+  if (profileMissing) notFound();
   if (!currentUser || loading || !user) return null;
 
   const isSelf = user.id === currentUser.id;
