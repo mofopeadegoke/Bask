@@ -152,21 +152,28 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchData(currentUserId: string) {
       try {
-        const profile = await getUserProfile();
-        const mappedUser = mapBackendUserToFrontendUser(profile);
+        const usersData = await getAllUsersNonAdmin();
+        const mappedUsers: User[] =
+          usersData.users?.map((u: BackendUserSummary) =>
+            mapBackendUserToFrontendUserWithoutUserKey(u)
+          ) || [];
+
+        // The backend has no "get user by id" endpoint, so other users are
+        // looked up in the user list; only your own profile has an endpoint.
+        const mappedUser = String(userId) === String(currentUserId)
+          ? mapBackendUserToFrontendUser(await getUserProfile())
+          : mappedUsers.find(u => String(u.id) === String(userId));
+
+        if (!mappedUser) {
+          notFound();
+        }
 
         const rawPosts = await getUserPosts(mappedUser.id);
         const normalizedPosts = Array.isArray(rawPosts)
           ? rawPosts
           : rawPosts?.posts || [];
-
-        const usersData = await getAllUsersNonAdmin();
-        const mappedUsers =
-          usersData.users?.map((u: BackendUserSummary) =>
-            mapBackendUserToFrontendUserWithoutUserKey(u)
-          ) || [];
 
         setUser(mappedUser);
         setPosts(normalizedPosts);
@@ -207,7 +214,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
     }
 
     if (currentUser) {
-      fetchData();
+      fetchData(currentUser.id);
       fetchProfileData();
       fetchMyFollowing(currentUser.id);
     }
