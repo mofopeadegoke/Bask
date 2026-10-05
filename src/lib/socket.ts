@@ -94,8 +94,3 @@ export function disconnectSocket() {
   }
   connectionPromise = null;
 }
-
-export async function reconnectSocket(): Promise<Socket | null> {
-  disconnectSocket();
-  return await getSocket();
-}

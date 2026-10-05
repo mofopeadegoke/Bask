@@ -9,7 +9,6 @@ import { connectSocket, disconnectSocket } from '@/lib/socket';
 
 interface AuthContextType {
   currentUser: User | null;
-  login: (userId: string) => void;
   logout: () => void;
   loading: boolean;
   setCurrentUser: (user: User | null) => void;
@@ -86,19 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   fetchUserProfile();
 }, []);
-  const login = (userId: string) => {
-    const user = dummyUsers.find(u => u.id === userId);
-    if (user) {
-      setCurrentUser(user);
-      try {
-        localStorage.setItem('currentUserId', user.id);
-        connectSocket(); // Reconnect socket on login
-      } catch (error) {
-        console.error("Could not access local storage", error);
-      }
-    }
-  };
-
   const logout = () => {
     setCurrentUser(null);
     try {
@@ -110,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, loading, setCurrentUser }}>
+    <AuthContext.Provider value={{ currentUser, logout, loading, setCurrentUser }}>
       {!loading && children}
       {loading && <Loader />}
     </AuthContext.Provider>
