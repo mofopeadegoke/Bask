@@ -189,11 +189,8 @@ src/
 │   ├── config.ts            # Backend URLs (reads NEXT_PUBLIC_BACKEND_URL)
 │   ├── socket.ts            # Socket.IO connection management
 │   ├── socketHelper.ts      # Conversation helpers
-│   ├── types.ts             # Shared types and Zod schemas
-│   ├── data.ts              # Placeholder/dummy data (used as fallbacks)
-│   └── placeholder-images.* # Placeholder image catalogue
+│   └── types.ts             # Shared types and Zod schemas
 └── public/                  # Logos
-docs/blueprint.md            # Original product brief and style guide (written as "SportLink")
 ```
 
 ---
@@ -210,4 +207,4 @@ docs/blueprint.md            # Original product brief and style guide (written a
 
 The app is set up for **Firebase App Hosting**. `apphosting.yaml` sets `maxInstances: 1`. Set `GEMINI_API_KEY` (and `NEXT_PUBLIC_BACKEND_URL`, if you're not using the default backend) as secrets or environment variables in App Hosting.
 
-Remote images are allowed from `res.cloudinary.com`, `images.unsplash.com`, `placehold.co` and `picsum.photos` (`next.config.ts`).
+Remote images are allowed from `res.cloudinary.com` only (`next.config.ts`).
