@@ -37,7 +37,7 @@ const newChallengeInitialState = {
 export default function AdminChallengesPage() {
   const { toast } = useToast();
   
-  const [challenges, setChallenges] = useState<any[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   

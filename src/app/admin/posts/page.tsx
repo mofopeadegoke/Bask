@@ -18,7 +18,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { BackendPost, Comment, User } from '@/lib/types';
+import { BackendComment, BackendPost, BackendUserSummary, Comment, User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,7 +34,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 // Transform backend comment format to frontend format
-function mapBackendCommentToFrontend(backendComment: any): Comment {
+function mapBackendCommentToFrontend(backendComment: BackendComment): Comment {
   return {
     id: backendComment.id,
     commenterId: backendComment.userId,
@@ -77,7 +77,7 @@ export default function AdminPostsPage() {
     const fetchUsers = async () => {
       try {
         const data = await getAllUsers();
-        const mappedUsers = data.users.map((backendUser: any) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
+        const mappedUsers = data.users.map((backendUser: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
         const filteredUsers = mappedUsers.filter((u: User) => u.type !== 'Admin');
         setUsers(filteredUsers);
       } catch (error) {

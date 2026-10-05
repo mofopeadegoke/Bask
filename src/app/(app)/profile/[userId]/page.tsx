@@ -6,7 +6,7 @@ import React, { useEffect, useState, useRef } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -41,8 +41,7 @@ import {
 } from '@/api/auth';
 
 import { notFound } from 'next/navigation';
-import { BackendPost, User, UserType } from '@/lib/types';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { BackendPost, BackendUserSummary, User, UserType } from '@/lib/types';
 import { toast, useToast } from '@/hooks/use-toast';
 
 function getBadgeVariant(userType: UserType): 'fan' | 'player' | 'pro' | 'secondary' {
@@ -63,26 +62,16 @@ function UserRow({
   targetUser,
   currentUser,
   onToggleFollow,
-  initialIsFollowing, 
+  isFollowing,
+  disabled = false,
 }: {
   targetUser: User;
   currentUser: User;
-  onToggleFollow: (userId: string, isFollowing: boolean) => void;
-  initialIsFollowing?: boolean;
+  onToggleFollow: (userId: string, wasFollowing: boolean) => void;
+  isFollowing: boolean;
+  disabled?: boolean;
 }) {
-  const checkFollowing = () => {
-    if (initialIsFollowing !== undefined) return initialIsFollowing;
-    return (currentUser?.following || []).some(id => String(id) === String(targetUser.id));
-  };
-
-  const [isFollowing, setIsFollowing] = useState(checkFollowing());
-
-  useEffect(() => {
-    setIsFollowing(checkFollowing());
-  }, [initialIsFollowing, currentUser?.following]);
-
   const isSelf = String(targetUser.id) === String(currentUser?.id);
-  const userAvatar = PlaceHolderImages.find(img => img.id === targetUser.avatarId);
 
   const handleClick = async () => {
     try {
@@ -91,9 +80,8 @@ function UserRow({
       } else {
         await follow(targetUser.id);
       }
-      
-      setIsFollowing((prev: boolean) => !prev);
-      onToggleFollow(targetUser.id, isFollowing); 
+
+      onToggleFollow(targetUser.id, isFollowing);
       
     } catch(error) {
       console.error("Error toggling follow:", error);
@@ -109,7 +97,7 @@ function UserRow({
     <div className="flex items-center justify-between gap-3">
       <Link href={`/profile/${targetUser.id}`} className="flex items-center gap-3 min-w-0 flex-1">
         <Avatar>
-          <AvatarImage src={targetUser.profilePicture || userAvatar?.imageUrl} />
+          <AvatarImage src={targetUser.profilePicture ?? undefined} />
           <AvatarFallback>{targetUser.name[0]}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
@@ -126,6 +114,7 @@ function UserRow({
           size="sm"
           variant={isFollowing ? 'secondary' : 'default'}
           onClick={handleClick}
+          disabled={disabled}
         >
           {isFollowing ? 'Following' : 'Follow'}
         </Button>
@@ -141,6 +130,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const [posts, setPosts] = useState<BackendPost[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileMissing, setProfileMissing] = useState(false);
   const [userFollowersUI, setUserFollowersUI] = useState<User[]>([]);
   const [userFollowingUI, setUserFollowingUI] = useState<User[]>([]);
 
@@ -156,27 +146,40 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [isFollowingProfile, setIsFollowingProfile] = useState(false);
+  // IDs of the users the logged-in user follows; null until loaded.
+  const [myFollowingIds, setMyFollowingIds] = useState<Set<string> | null>(null);
 
   const { userId } = React.use(params);
   const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchData() {
+    // Ignore responses that arrive after navigating to another profile.
+    let ignore = false;
+
+    async function fetchData(currentUserId: string) {
       try {
-        const profile = await getUserProfile();
-        const mappedUser = mapBackendUserToFrontendUser(profile);
+        const usersData = await getAllUsersNonAdmin();
+        const mappedUsers: User[] =
+          usersData.users?.map((u: BackendUserSummary) =>
+            mapBackendUserToFrontendUserWithoutUserKey(u)
+          ) || [];
+
+        // The backend has no "get user by id" endpoint, so other users are
+        // looked up in the user list; only your own profile has an endpoint.
+        const mappedUser = String(userId) === String(currentUserId)
+          ? mapBackendUserToFrontendUser(await getUserProfile())
+          : mappedUsers.find(u => String(u.id) === String(userId));
+
+        if (!mappedUser) {
+          if (!ignore) setProfileMissing(true);
+          return;
+        }
 
         const rawPosts = await getUserPosts(mappedUser.id);
         const normalizedPosts = Array.isArray(rawPosts)
           ? rawPosts
           : rawPosts?.posts || [];
-
-        const usersData = await getAllUsersNonAdmin();
-        const mappedUsers =
-          usersData.users?.map((u: any) =>
-            mapBackendUserToFrontendUserWithoutUserKey(u)
-          ) || [];
+        if (ignore) return;
 
         setUser(mappedUser);
         setPosts(normalizedPosts);
@@ -187,14 +190,10 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
         const nameParts = mappedUser.name?.split(' ') || [];
         setEditedFirstName(nameParts[0] || '');
         setEditedLastName(nameParts.slice(1).join(' ') || '');
-
-        if (currentUser) {
-          setIsFollowingProfile(currentUser.following.includes(mappedUser.id));
-        }
       } catch {
-        notFound();
+        if (!ignore) setProfileMissing(true);
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
 
@@ -202,6 +201,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
       try {
         const followers = await userFollowers(userId);
         const following = await userFollowing(userId);
+        if (ignore) return;
         setUserFollowersUI(followers.followers);
         setUserFollowingUI(following.following);
       } catch (error) {
@@ -209,15 +209,55 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
       }
     }
 
-    if (currentUser) {
-      fetchData();
-      fetchProfileData();
+    async function fetchMyFollowing(currentUserId: string) {
+      try {
+        const myFollowing = await userFollowing(currentUserId);
+        if (ignore) return;
+        setMyFollowingIds(
+          new Set((myFollowing.following || []).map((u: BackendUserSummary) => String(u.id)))
+        );
+      } catch (error) {
+        console.error("Error fetching followed users:", error);
+      }
     }
+
+    if (currentUser) {
+      // Clear the previous profile so it isn't shown while the next one loads.
+      setLoading(true);
+      setProfileMissing(false);
+      setUser(null);
+      setPosts([]);
+      setUserFollowersUI([]);
+      setUserFollowingUI([]);
+
+      fetchData(currentUser.id);
+      fetchProfileData();
+      fetchMyFollowing(currentUser.id);
+    }
+
+    return () => {
+      ignore = true;
+    };
   }, [currentUser, userId]);
 
+  if (profileMissing) notFound();
   if (!currentUser || loading || !user) return null;
 
   const isSelf = user.id === currentUser.id;
+  const isFollowing = (id: string) => myFollowingIds?.has(String(id)) ?? false;
+  const isFollowingProfile = isFollowing(user.id);
+
+  const updateMyFollowing = (targetId: string, wasFollowing: boolean) => {
+    setMyFollowingIds(prev => {
+      const next = new Set(prev);
+      if (wasFollowing) {
+        next.delete(String(targetId));
+      } else {
+        next.add(String(targetId));
+      }
+      return next;
+    });
+  };
 
   // --- HANDLE EDIT PROFILE ---
   const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,36 +316,26 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const handleProfileFollowToggle = async () => {
     if (isFollowingProfile) {
       await unfollow(user.id);
-      setUser(prev =>
-        prev ? { ...prev, followers: prev.followers.filter(id => id !== currentUser.id) } : prev
-      );
+      setUserFollowersUI(prev => prev.filter(u => String(u.id) !== String(currentUser.id)));
     } else {
       await follow(user.id);
-      setUser(prev =>
-        prev ? { ...prev, followers: [...prev.followers, currentUser.id] } : prev
-      );
+      setUserFollowersUI(prev => [...prev, currentUser]);
     }
-    setIsFollowingProfile(prev => !prev);
+    updateMyFollowing(user.id, isFollowingProfile);
   };
 
  const handleFollowUser = (targetId: string, wasFollowing: boolean) => {
-    setUser(prev =>
-      prev
-        ? {
-            ...prev,
-            following: wasFollowing
-              ? prev.following.filter(id => String(id) !== String(targetId))
-              : [...prev.following, targetId],
-          }
-        : prev
-    );
+    updateMyFollowing(targetId, wasFollowing);
+
+    // Only your own profile's "Following" list reflects who you follow.
+    if (!isSelf) return;
 
     if (wasFollowing) {
       setUserFollowingUI(prev => prev.filter(u => String(u.id) !== String(targetId)));
     } else {
       const newlyFollowedUser = allUsers.find(u => String(u.id) === String(targetId));
       if (newlyFollowedUser) {
-        setUserFollowingUI(prev => [...prev, newlyFollowedUser as any]);
+        setUserFollowingUI(prev => [...prev, newlyFollowedUser]);
       }
     }
   };
@@ -318,14 +348,11 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const mappedFollowingList = userFollowingUI.map(u => ({
     ...mapBackendUserToFrontendUserWithoutUserKey(u)
   }));
-  const followingList = mappedFollowingList;
 
   const discoverableUsers = allUsers.filter(u => {
     const isNotSelf = String(u.id) !== String(currentUser.id);
     const isNotAdmin = u.type?.toLowerCase() !== 'admin' && u.name?.toLowerCase() !== 'admin';
-    const isNotAlreadyFollowed = !mappedFollowingList.some(
-      (followingUser) => String(followingUser.id) === String(u.id)
-    );
+    const isNotAlreadyFollowed = !isFollowing(u.id);
     return isNotSelf && isNotAdmin && isNotAlreadyFollowed;
   });
 
@@ -333,19 +360,17 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
     u.name.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
   
-  // Resolve Avatar and Cover Image sources
-  const userAvatar = PlaceHolderImages.find(img => img.id === user.avatarId);
-  
-  // Use uploaded picture first, then fallback to placeholder
-  const displayAvatar = user.profilePicture || userAvatar?.imageUrl;
+  const displayAvatar = user.profilePicture ?? undefined;
 
   const userPosts = posts.filter(p => p.author.id === user.id);
 
   return (
     <div className="w-full grid gap-6">
       <Card>
-        <div className="relative h-48">
-          <Image src={displayAvatar || '/dummy/cover.jpg'} fill className="object-cover opacity-80" alt="cover" />
+        <div className="relative h-48 bg-muted">
+          {displayAvatar && (
+            <Image src={displayAvatar} fill className="object-cover opacity-80" alt="cover" />
+          )}
           <Avatar className="absolute -bottom-16 left-6 h-32 w-32 border-4 border-card">
             <AvatarImage src={displayAvatar} />
             <AvatarFallback>{user.name[0]}</AvatarFallback>
@@ -444,6 +469,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                   <Button
                     variant={isFollowingProfile ? 'secondary' : 'default'}
                     onClick={handleProfileFollowToggle}
+                    disabled={myFollowingIds === null}
                   >
                     {isFollowingProfile ? 'Following' : 'Follow'}
                   </Button>
@@ -461,8 +487,8 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
       </Card>
 
       {/* MAIN CONTENT */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6">
+        <div>
           <Tabs defaultValue="posts">
             <TabsList className="grid grid-cols-4">
               <TabsTrigger value="posts">Posts</TabsTrigger>
@@ -488,7 +514,14 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
 
             <TabsContent value="followers" className="mt-4 space-y-4">
               {followersList.length ? followersList.map(u => (
-                <UserRow key={u.id} targetUser={u} currentUser={currentUser} onToggleFollow={handleFollowUser} />
+                <UserRow
+                  key={u.id}
+                  targetUser={u}
+                  currentUser={currentUser}
+                  onToggleFollow={handleFollowUser}
+                  isFollowing={isFollowing(u.id)}
+                  disabled={myFollowingIds === null}
+                />
               )) : (
                 <Card><CardContent className="p-6 text-center">No followers yet.</CardContent></Card>
               )}
@@ -500,18 +533,16 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                 <h3 className="font-semibold text-lg font-headline">Following</h3>
                 {mappedFollowingList.length > 0 ? (
                   <div className="space-y-4">
-                    {mappedFollowingList.map(u => {
-                      const isCurrentlyFollowing = isSelf ? true : (currentUser.following || []).some(id => String(id) === String(u.id));
-                      return (
-                        <UserRow 
-                          key={u.id} 
-                          targetUser={u} 
-                          currentUser={currentUser} 
-                          onToggleFollow={handleFollowUser} 
-                          initialIsFollowing={isCurrentlyFollowing}
-                        />
-                      );
-                    })}
+                    {mappedFollowingList.map(u => (
+                      <UserRow
+                        key={u.id}
+                        targetUser={u}
+                        currentUser={currentUser}
+                        onToggleFollow={handleFollowUser}
+                        isFollowing={isFollowing(u.id)}
+                        disabled={myFollowingIds === null}
+                      />
+                    ))}
                   </div>
                 ) : (
                   <Card>
@@ -544,8 +575,9 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                         key={u.id} 
                         targetUser={u} 
                         currentUser={currentUser} 
-                        onToggleFollow={handleFollowUser} 
-                        initialIsFollowing={false} 
+                        onToggleFollow={handleFollowUser}
+                        isFollowing={false}
+                        disabled={myFollowingIds === null}
                       />
                     ))}
                   </div>
@@ -559,27 +591,6 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
               </div>
             </TabsContent>
           </Tabs>
-        </div>
-
-        {/* STATS SIDEBAR */}
-        <div className="space-y-4 sm:space-y-6">
-          {user.stats && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-headline text-base sm:text-lg">Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-xs sm:text-sm">
-                  {Object.entries(user.stats).map(([k, v]) => (
-                    <li key={k} className="flex justify-between gap-2">
-                      <span className="text-muted-foreground truncate">{k}</span>
-                      <span className="font-medium flex-shrink-0">{v}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>

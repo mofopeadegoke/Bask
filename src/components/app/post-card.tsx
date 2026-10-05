@@ -16,14 +16,12 @@ import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Heart, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
-import type { BackendPost, Comment } from "@/lib/types";
-import { users as dummyUsers } from '@/lib/data';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import type { BackendComment, BackendPost, Comment } from "@/lib/types";
 import { getComments, addComment, likePost, checkIfPostIsLiked } from '@/api/auth';
 import { useToast } from "@/hooks/use-toast";
 
 // Transform backend comment format to frontend format
-function mapBackendCommentToFrontend(backendComment: any): Comment {
+function mapBackendCommentToFrontend(backendComment: BackendComment): Comment {
   return {
     id: backendComment.id,
     commenterId: backendComment.userId,
@@ -43,24 +41,6 @@ export function PostCard({ post }: { post: BackendPost }) {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-
-  const author = post.author;
-  if (!author || !currentUser) return null;
-
-  const fullName = `${author.firstName} ${author.lastName}`;
-  
-  // Check if author has profilePicture, otherwise use fallback
-  const avatarUrl = author.profilePicture || null;
-  const isVideo = post.media?.[0]?.type === 'video';
-  const isImage = post.media?.[0]?.type === 'image';
-  const mediaUrl = post.media?.[0]?.url || null;
-
-  const currentUserAvatar = PlaceHolderImages.find(img => img.id === currentUser.avatarId);
-
-  const parsedDate = new Date(Date.parse(post.createdAt));
-  const timeAgo = formatDistanceToNow(parsedDate, {
-    addSuffix: true,
-  });
 
   // Check if post is liked on mount
   useEffect(() => {
@@ -98,7 +78,25 @@ export function PostCard({ post }: { post: BackendPost }) {
     };
 
     fetchComments();
-  }, [showComments, post.id]);
+  }, [showComments, post.id, toast]);
+
+  const author = post.author;
+  if (!author || !currentUser) return null;
+
+  const fullName = `${author.firstName} ${author.lastName}`;
+  
+  // Check if author has profilePicture, otherwise use fallback
+  const avatarUrl = author.profilePicture || null;
+  const isVideo = post.media?.[0]?.type === 'video';
+  const isImage = post.media?.[0]?.type === 'image';
+  const mediaUrl = post.media?.[0]?.url || null;
+
+
+  const parsedDate = new Date(Date.parse(post.createdAt));
+  const timeAgo = formatDistanceToNow(parsedDate, {
+    addSuffix: true,
+  });
+
 
   const handleToggleComments = () => {
     setShowComments(!showComments);
@@ -247,8 +245,11 @@ export function PostCard({ post }: { post: BackendPost }) {
               </p>
             ) : comments.length > 0 ? (
               comments.map(comment => {
-                const commenter = dummyUsers.find(u => u.id === comment.commenterId) || currentUser;
-                const commenterAvatar = PlaceHolderImages.find(img => img.id === commenter.avatarId);
+                // Comments only carry the author's id; the backend sends no name or
+                // picture, so other people's comments show a generic author.
+                const commenter = comment.commenterId === currentUser.id
+                  ? currentUser
+                  : { id: comment.commenterId, name: 'User', profilePicture: null };
                 
                 // Parse the comment's createdAt
                 const commentDate = comment.createdAt 
@@ -259,9 +260,9 @@ export function PostCard({ post }: { post: BackendPost }) {
                 return (
                   <div key={comment.id} className="flex items-start gap-2 sm:gap-3">
                     <Avatar className="h-8 w-8 flex-shrink-0">
-                      {commenterAvatar?.imageUrl && (
+                      {commenter.profilePicture && (
                         <AvatarImage 
-                          src={commenterAvatar.imageUrl} 
+                          src={commenter.profilePicture} 
                           alt={commenter.name} 
                         />
                       )}
@@ -292,9 +293,9 @@ export function PostCard({ post }: { post: BackendPost }) {
           </div>
           <form onSubmit={handleAddComment} className="w-full flex items-center gap-2 pt-2">
             <Avatar className="h-8 w-8 flex-shrink-0">
-              {currentUserAvatar?.imageUrl && (
+              {currentUser.profilePicture && (
                 <AvatarImage 
-                  src={currentUserAvatar.imageUrl} 
+                  src={currentUser.profilePicture} 
                   alt={currentUser.name} 
                 />
               )}

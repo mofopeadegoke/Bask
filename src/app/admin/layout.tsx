@@ -26,7 +26,6 @@ import {
 import Link from 'next/link';
 import { Logo } from '@/components/app/logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -59,7 +58,6 @@ export default function AdminLayout({
     return null; // or a loading spinner
   }
 
-  const userAvatar = PlaceHolderImages.find(img => img.id === currentUser.avatarId);
 
   const navItems = [
     { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -124,7 +122,7 @@ export default function AdminLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={userAvatar?.imageUrl} alt={currentUser.name} data-ai-hint={userAvatar?.imageHint} />
+                  <AvatarImage src={currentUser.profilePicture ?? undefined} alt={currentUser.name} />
                   <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
                 </Avatar>
               </Button>

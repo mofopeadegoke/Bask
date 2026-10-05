@@ -1,8 +1,7 @@
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Users, FileText, Calendar, Trophy } from "lucide-react";
-import { leaderboardData } from "@/lib/data";
-import { User, BackendPost, BackendEvent } from "@/lib/types";
+import { User, BackendPost, BackendEvent, BackendUserSummary, Challenge } from "@/lib/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getAllUsers, mapBackendUserToFrontendUserWithoutUserKey, getAllPosts, getAllEvents } from "@/api/auth";
+import { getAllUsers, mapBackendUserToFrontendUserWithoutUserKey, getAllPosts, getAllEvents, getAllChallenges } from "@/api/auth";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +22,7 @@ export default function AdminDashboardPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [posts, setPosts] = useState<BackendPost[]>([]);
     const [events, setEvents] = useState<BackendEvent[]>([]);
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
     
 
 
@@ -31,56 +31,33 @@ export default function AdminDashboardPage() {
     
     const totalPosts = posts.length;
     const totalEvents = events.length;
-    const totalLeaderboardEntries = Object.values(leaderboardData).reduce((acc, curr) => acc + curr.length, 0);
+    const totalChallenges = challenges.length;
 
     const recentUsers = regularUsers.slice(0, 5);
     const recentPosts = posts.slice(0, 5);
 
     useEffect(() => {
-        try {
-            const fetchUsers = async () => {
-                const data = await getAllUsers();
-                const mappedUsers = data.users.map((backendUser: any) => mapBackendUserToFrontendUserWithoutUserKey(backendUser));
-                setUsers(mappedUsers);
-            };
-            fetchUsers();
-        } catch (error) {
-            console.error("Error fetching users:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch users.",
-                variant: "destructive",
-            });
+        // Each request runs on its own, so one failure doesn't hide the others.
+        async function load<T>(fetcher: () => Promise<T>, onSuccess: (data: T) => void, what: string) {
+            try {
+                onSuccess(await fetcher());
+            } catch (error) {
+                console.error(`Error fetching ${what}:`, error);
+                toast({
+                    title: "Error",
+                    description: `Failed to fetch ${what}.`,
+                    variant: "destructive",
+                });
+            }
         }
-        try {
-            const fetchPosts = async () => {
-                const data = await getAllPosts();
-                setPosts(data.posts);
-            };
-            fetchPosts();
-        } catch (error) {
-            console.error("Error fetching posts:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch posts.",
-                variant: "destructive",
-            });
-        }
-        try {
-            const fetchEvents = async () => {
-                const data = await getAllEvents();
-                setEvents(data.events);
-            };
-            fetchEvents();
-        } catch (error) {
-            console.error("Error fetching events:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch events.",
-                variant: "destructive",
-            });
-        }
-    }, []);
+
+        load(getAllUsers, (data) => setUsers(
+            data.users.map((backendUser: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(backendUser))
+        ), "users");
+        load(getAllPosts, (data) => setPosts(data.posts), "posts");
+        load(getAllEvents, (data) => setEvents(data.events), "events");
+        load(getAllChallenges, (data) => setChallenges(data.challenges || []), "challenges");
+    }, [toast]);
 
     return (
         <div className="grid gap-6">
@@ -114,11 +91,11 @@ export default function AdminDashboardPage() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Leaderboard Entries</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total Challenges</CardTitle>
                         <Trophy className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totalLeaderboardEntries}</div>
+                        <div className="text-2xl font-bold">{totalChallenges}</div>
                     </CardContent>
                 </Card>
             </div>

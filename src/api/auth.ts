@@ -1,10 +1,9 @@
 import axios from 'axios';
-import { RegisterSchema, registerSchema } from '@/lib/types';
-import {users as dummyUsers} from '@/lib/data';
-import { User } from '@/lib/types';
+import type { BackendAuthResponse, BackendUserSummary, RegisterSchema, User } from '@/lib/types';
+import { API_BASE_URL } from '@/lib/config';
 
 const API = {
-  baseURL: 'https://bask-backend-slo6.onrender.com/api',
+  baseURL: API_BASE_URL,
   timeout: 30000
 };
 
@@ -78,32 +77,22 @@ export async function getUserPosts(userId: string) {
   return response.data;
 }
 
-export function getRandomDummyUser() {
-  return dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
-}
-
-export function mapBackendUserToFrontendUser(backendUser: any): User {
-  const randomDummy = getRandomDummyUser();
+export function mapBackendUserToFrontendUser(backendUser: BackendAuthResponse): User {
+  const { user } = backendUser;
 
   return {
-    id: backendUser.user.id,
-    name: `${backendUser.user.firstName} ${backendUser.user.lastName}`,
-    type: backendUser.user.accountType,
-    avatarId: randomDummy.avatarId,
-    bio: backendUser.user.bio ?? "",
-    connections: randomDummy.connections ?? [],
-    followers: randomDummy.followers ?? [],
-    following: randomDummy.following ?? [],
-    stats: randomDummy.stats ?? {},
-    profileCoverId: backendUser.user.profilePicture,
-    profilePicture: backendUser.user.profilePicture,
+    id: user.id,
+    name: `${user.firstName} ${user.lastName}`,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    type: user.accountType,
+    bio: user.bio ?? "",
+    profilePicture: user.profilePicture,
     token: backendUser.token,
   };
 }
 
-export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: any): User {
-  const randomDummy = getRandomDummyUser();
-
+export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: BackendUserSummary): User {
   // Safely check for first and last names
   const fName = backendUser.firstName && backendUser.firstName !== "undefined" ? backendUser.firstName : "";
   const lName = backendUser.lastName && backendUser.lastName !== "undefined" ? backendUser.lastName : "";
@@ -120,13 +109,7 @@ export function mapBackendUserToFrontendUserWithoutUserKey(backendUser: any): Us
     firstName: fName,
     lastName: lName,
     type: backendUser.accountType || backendUser.type || "Fan",
-    avatarId: randomDummy.avatarId,
-    bio: backendUser.bio || randomDummy.bio || "",
-    connections: randomDummy.connections ?? [],
-    followers: randomDummy.followers ?? [],
-    following: randomDummy.following ?? [],
-    stats: randomDummy.stats ?? {},
-    profileCoverId: randomDummy.profileCoverId,
+    bio: backendUser.bio || "",
     profilePicture: backendUser.profilePicture || null,
   };
 }

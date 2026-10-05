@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Logo } from '@/components/app/logo';
-import { Separator } from '@/components/ui/separator';
 import { registerUser } from '@/api/auth';
 import { RegisterSchema } from '@/lib/types';
 import { useForm } from 'react-hook-form';
@@ -52,7 +51,7 @@ export default function SignupPage() {
 
   async function onSubmit(data: RegisterSchema) {
     try {
-      const response = await registerUser(data);
+      await registerUser(data);
       router.push('/login');
     } catch (error) {
       console.error("Error during signup:", error);

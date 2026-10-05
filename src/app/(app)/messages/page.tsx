@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import type { Socket } from "socket.io-client";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { Send, Pencil, LucideLoader, Users as UsersIcon, UserPlus, Check, X } from "lucide-react";
+import { Send, Pencil, LucideLoader, Users as UsersIcon, UserPlus, Check } from "lucide-react";
 
 import { getSocket } from "@/lib/socket";
 import { getConversationMessages, getUserConversations, getAllUsersNonAdmin, mapBackendUserToFrontendUserWithoutUserKey } from "@/api/auth";
 import { startConversation } from "@/lib/socketHelper";
 import { useAuth } from "@/context/auth-context";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { User, BackendConversation, BackendMessage } from "@/lib/types";
+import type { User, BackendConversation, BackendMessage, BackendUser, BackendUserSummary } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +30,44 @@ import { Label } from "@/components/ui/label";
 
 type NewMessageView = 'list' | 'group-form';
 
+// Fill in participant names from the user list, or from the current user.
+function enrichParticipantData(
+  participant: BackendUser & { name?: string },
+  users: User[],
+  currentUser: User | null,
+) {
+  if (!participant) return participant;
+
+  // If we have user data in the user list, use it
+  const fullUserData = users.find(u => u.id === participant.id);
+
+  if (fullUserData) {
+    return {
+      ...participant,
+      id: fullUserData.id,
+      firstName: fullUserData.name?.split(' ')[0] || 'Unknown',
+      lastName: fullUserData.name?.split(' ')[1] || '',
+    };
+  }
+
+  // If it's the current user, use currentUser data
+  if (currentUser && participant.id === currentUser.id) {
+    return {
+      ...participant,
+      firstName: currentUser.name || 'You',
+      lastName: '',
+    };
+  }
+
+  // Ensure at least basic structure
+  return {
+    ...participant,
+    firstName: participant.firstName || participant.name?.split(' ')[0] || 'Loading...',
+    lastName: participant.lastName || participant.name?.split(' ')[1] || '',
+  };
+}
+
 export default function Messages() {
-  const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -59,7 +93,7 @@ export default function Messages() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const dummyAvatar = PlaceHolderImages[0];
+  const remoteTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get active conversation details
   const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -98,56 +132,15 @@ export default function Messages() {
   };
 
   // Get participant avatar - checks for profilePicture, returns null if not available
-  const getParticipantAvatar = (participant: any) => {
+  const getParticipantAvatar = (participant?: Pick<BackendUser, 'profilePicture'> | null) => {
     if (participant?.profilePicture) {
       return participant.profilePicture;
     }
     return null;
   };
 
-  // Get user avatar for user picker - checks for avatarId and maps to placeholder
-  const getUserAvatar = (user: User) => {
-    if (user.avatarId) {
-      const userPlaceholder = PlaceHolderImages.find(img => img.id === user.avatarId);
-      if (userPlaceholder?.imageUrl) {
-        return userPlaceholder.imageUrl;
-      }
-    }
-    return null;
-  };
-
-  // Helper to enrich participant data
-  const enrichParticipantData = (participant: any, userId?: string) => {
-    if (!participant) return participant;
-    
-    // If we have user data in nonAdminUsers, use it
-    const fullUserData = nonAdminUsers.find(u => u.id === participant.id);
-    
-    if (fullUserData) {
-      return {
-        ...participant,
-        id: fullUserData.id,
-        firstName: fullUserData.name?.split(' ')[0] || 'Unknown',
-        lastName: fullUserData.name?.split(' ')[1] || '',
-      };
-    }
-    
-    // If it's the current user, use currentUser data
-    if (userId && participant.id === userId) {
-      return {
-        ...participant,
-        firstName: currentUser?.name || 'You',
-        lastName: '',
-      };
-    }
-    
-    // Ensure at least basic structure
-    return {
-      ...participant,
-      firstName: participant.firstName || participant.name?.split(' ')[0] || 'Loading...',
-      lastName: participant.lastName || participant.name?.split(' ')[1] || '',
-    };
-  };
+  // Get user avatar for user picker
+  const getUserAvatar = (user: User) => user.profilePicture ?? null;
 
   // Group chat functions
   const toggleGroupParticipant = (user: User) => {
@@ -248,11 +241,11 @@ export default function Messages() {
       );
     };
 
-    const onUserTyping = (data: any) => {
+    const onUserTyping = (data: { conversationId?: string }) => {
       if (data?.conversationId === activeConversationId) {
         setUserTyping(true);
-        clearTimeout((window as any).__typingTimeout);
-        (window as any).__typingTimeout = setTimeout(() => setUserTyping(false), 800);
+        if (remoteTypingTimeoutRef.current) clearTimeout(remoteTypingTimeoutRef.current);
+        remoteTypingTimeoutRef.current = setTimeout(() => setUserTyping(false), 800);
       }
     };
 
@@ -287,10 +280,10 @@ export default function Messages() {
       // complete list of conversations so we get the fully populated participants array.
       try {
         const data = await getUserConversations();
-        const enrichedConversations = data?.map((conv:any) => ({
+        const enrichedConversations = data?.map((conv: BackendConversation) => ({
           ...conv,
-          participants: conv.participants?.map((participant:any) => 
-            enrichParticipantData(participant, currentUser?.id)
+          participants: conv.participants?.map((participant: BackendUser) => 
+            enrichParticipantData(participant, nonAdminUsers, currentUser)
           ) || []
         })) || [];
         
@@ -300,12 +293,12 @@ export default function Messages() {
       }
     };
 
-    const onError = (err: any) => {
+    const onError = (err: unknown) => {
       console.error("Socket error:", err);
       setCreatingConversation(false);
       toast({
         title: 'Error',
-        description: err?.message || 'Something went wrong.',
+        description: getErrorMessage(err),
         variant: 'destructive',
       });
     };
@@ -325,33 +318,51 @@ export default function Messages() {
       socket.off("conversation_created", onConversationCreated);
       socket.off("error", onError);
     };
-  }, [socket, activeConversationId, currentUser, nonAdminUsers]);
+  }, [socket, activeConversationId, currentUser, nonAdminUsers, toast]);
 
   useEffect(() => {
+    async function loadNonAdminUsers(): Promise<User[]> {
+      if (!currentUser) return [];
+
+      try {
+        const data = await getAllUsersNonAdmin();
+        const mappedUsers = data.users?.map((user: BackendUserSummary) => mapBackendUserToFrontendUserWithoutUserKey(user)) || [];
+        const filteredUsers = mappedUsers.filter((user: User) => user.id !== currentUser.id);
+        setNonAdminUsers(filteredUsers);
+        return filteredUsers;
+      } catch (error) {
+        console.error("Error fetching non-admin users:", error);
+        return [];
+      }
+    }
+
     async function loadConversations() {
       setIsLoadingConversations(true);
+      // Start both requests; participants are enriched once the users arrive.
+      const usersPromise = loadNonAdminUsers();
       try {
         const data = await getUserConversations();
+        const users = await usersPromise;
         
         // Enrich all conversations with complete participant data
-        const enrichedConversations = data?.map((conv:any) => ({
+        const enrichedConversations = data?.map((conv: BackendConversation) => ({
           ...conv,
-          participants: conv.participants?.map((participant:any) => 
-            enrichParticipantData(participant, currentUser?.id)
+          participants: conv.participants?.map((participant: BackendUser) => 
+            enrichParticipantData(participant, users, currentUser)
           ) || []
         })) || [];
         
         setConversations(enrichedConversations);
         
         // Auto-select first conversation if none selected
-        if (enrichedConversations.length > 0 && !activeConversationId) {
-          setActiveConversationId(enrichedConversations[0].id);
+        if (enrichedConversations.length > 0) {
+          setActiveConversationId(prev => prev ?? enrichedConversations[0].id);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching conversations:", error);
         toast({
           title: 'Error Loading Conversations',
-          description: error?.message || 'Failed to load conversations',
+          description: getErrorMessage(error, 'Failed to load conversations'),
           variant: 'destructive',
         });
       } finally {
@@ -359,38 +370,8 @@ export default function Messages() {
       }
     }
 
-    async function loadNonAdminUsers() {
-      if (!currentUser) return;
-      
-      try {
-        const data = await getAllUsersNonAdmin();
-        const mappedUsers = data.users?.map((user: any) => mapBackendUserToFrontendUserWithoutUserKey(user)) || [];
-        const filteredUsers = mappedUsers.filter((user: User) => user.id !== currentUser.id);
-        setNonAdminUsers(filteredUsers);
-        
-        // After loading nonAdminUsers, refresh conversations to enrich them
-        if (conversations.length > 0) {
-          setConversations(prev => {
-            return prev.map(conv => {
-              const enrichedParticipants = conv.participants?.map(participant => 
-                enrichParticipantData(participant, currentUser?.id)
-              ) || [];
-              
-              return {
-                ...conv,
-                participants: enrichedParticipants,
-              };
-            });
-          });
-        }
-      } catch (error: any) {
-        console.error("Error fetching non-admin users:", error);
-      }
-    }
-
     loadConversations();
-    loadNonAdminUsers();
-  }, [currentUser]);
+  }, [currentUser, toast]);
 
   useEffect(() => {
     if (!activeConversationId) return;

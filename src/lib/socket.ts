@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { getAuthToken } from '@/api/auth';
+import { BACKEND_URL } from '@/lib/config';
 
 let socket: Socket | null = null;
 let connectionPromise: Promise<Socket | null> | null = null;
@@ -40,7 +41,7 @@ export async function getSocket(): Promise<Socket | null> {
       console.log('Creating new socket connection...');
 
       // Create new socket connection
-      socket = io('https://bask-backend-slo6.onrender.com/', {
+      socket = io(BACKEND_URL, {
         auth: { token },
         withCredentials: true,
         transports: ['polling', 'websocket',],
@@ -92,9 +93,4 @@ export function disconnectSocket() {
     socket = null;
   }
   connectionPromise = null;
-}
-
-export async function reconnectSocket(): Promise<Socket | null> {
-  disconnectSocket();
-  return await getSocket();
 }
