@@ -23,7 +23,7 @@ export default function AuthSuccess() {
       }
     };
     loadUser();
-  }, []);
+  }, [router, setCurrentUser]);
 
   return <Loader />;
 }
